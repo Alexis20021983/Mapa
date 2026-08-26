@@ -30,6 +30,10 @@ def root():
 def health():
     return {"status":"ok"}
 
+@app.get("/api")
+def api_root():
+    return {"status":"ok","markers":"/api/markers","docs":"/docs"}
+
 def db(): 
     with Session(engine) as s: yield s
 @app.get("/api/markers",response_model=list[MarkerOut])
