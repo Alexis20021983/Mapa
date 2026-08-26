@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+backend/mapa.db
+backend/.venv/
+frontend/node_modules/
+frontend/dist/
+.env
