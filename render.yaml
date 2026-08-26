@@ -2,9 +2,8 @@ services:
   - type: web
     name: mapa-la-pampa-api
     runtime: python
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /docs
     envVars:
       - key: CORS_ORIGINS
@@ -15,9 +14,8 @@ services:
   - type: web
     name: mapa-la-pampa-web
     runtime: static
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
+    buildCommand: npm install --prefix frontend && npm run build --prefix frontend
+    staticPublishPath: frontend/dist
     envVars:
       - key: VITE_API_URL
         sync: false
