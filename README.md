@@ -30,4 +30,8 @@ El archivo `render.yaml` define dos servicios: una API Python y un frontend est�
 4. En el frontend configura `VITE_API_URL` con la URL pública de la API más `/api`, por ejemplo `https://mapa-la-pampa-api.onrender.com/api`.
 5. Ejecuta el despliegue. La API quedará documentada en `/docs`.
 
+Si el servicio ya existía antes de agregar `render.yaml`, revisa en Render
+**Settings > Build & Deploy > Start Command** y establece:
+`python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT`.
+
 SQLite funciona para una instalación inicial, pero en Render el disco del servicio es efímero. Para conservar datos después de reinicios, agrega un disco persistente o migra la base a PostgreSQL.
