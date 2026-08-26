@@ -22,9 +22,18 @@ class MarkerOut(MarkerIn): id:int; model_config={"from_attributes":True}
 app=FastAPI(title="Mapa La Pampa API",version="1.0.0")
 allowed_origins=[origin.strip() for origin in os.getenv("CORS_ORIGINS","http://localhost:5173").split(",") if origin.strip()]
 app.add_middleware(CORSMiddleware,allow_origins=allowed_origins,allow_methods=["*"],allow_headers=["*"])
+@app.get("/")
+def root():
+    return {"name":"Mapa La Pampa API","docs":"/docs","markers":"/api/markers"}
+
+@app.get("/health")
+def health():
+    return {"status":"ok"}
+
 def db(): 
     with Session(engine) as s: yield s
 @app.get("/api/markers",response_model=list[MarkerOut])
+@app.get("/markers",response_model=list[MarkerOut])
 @app.get("/marcadores",response_model=list[MarkerOut])
 def list_markers(department:Optional[str]=None,type:Optional[str]=None,s:Session=Depends(db)):
     q=select(Marker)
@@ -32,10 +41,12 @@ def list_markers(department:Optional[str]=None,type:Optional[str]=None,s:Session
     if type:q=q.where(Marker.type==type)
     return s.scalars(q).all()
 @app.post("/api/markers",response_model=MarkerOut,status_code=201)
+@app.post("/markers",response_model=MarkerOut,status_code=201)
 @app.post("/marcadores",response_model=MarkerOut,status_code=201)
 def create_marker(m:MarkerIn,s:Session=Depends(db)):
     x=Marker(**m.model_dump());s.add(x);s.commit();s.refresh(x);return x
 @app.put("/api/markers/{id}",response_model=MarkerOut)
+@app.put("/markers/{id}",response_model=MarkerOut)
 @app.put("/marcadores/{id}",response_model=MarkerOut)
 def update_marker(id:int,m:MarkerIn,s:Session=Depends(db)):
     x=s.get(Marker,id)
@@ -43,6 +54,7 @@ def update_marker(id:int,m:MarkerIn,s:Session=Depends(db)):
     for k,v in m.model_dump().items(): setattr(x,k,v)
     s.commit();s.refresh(x);return x
 @app.delete("/api/markers/{id}",status_code=204)
+@app.delete("/markers/{id}",status_code=204)
 @app.delete("/marcadores/{id}",status_code=204)
 def delete_marker(id:int,s:Session=Depends(db)):
     x=s.get(Marker,id)
