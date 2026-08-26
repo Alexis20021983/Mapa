@@ -16,7 +16,7 @@ npm install
 npm run dev
 ```
 
-El frontend usa React, TypeScript, Vite, Material UI y React-Leaflet con proyección `CRS.Simple` para ubicar marcadores mediante coordenadas relativas (0–100) sobre `public/mapa-la-pampa.jpg`. Intenta usar la API en `http://localhost:8000/api`; si no está disponible conserva un fallback local para desarrollo.
+El frontend usa React, TypeScript, Vite, Material UI y React-Leaflet con OpenStreetMap, centrado inicialmente en La Pampa. Intenta usar la API en `http://localhost:8000/api`; si no está disponible conserva un fallback local para desarrollo. Los marcadores antiguos con coordenadas X/Y de la imagen se ubican mediante la localidad asociada como capa de compatibilidad; los nuevos usan latitud y longitud.
 
 API: CRUD en `/api/markers` (alias `/marcadores`), importación en `/api/markers/import` o `/importar-excel`, y exportación backend en `/exportar.json` y `/exportar.csv`. Excel/CSV acepta `Nombre, Localidad, Agencia, Codigo, Estado, X, Y, Observaciones` y nombres equivalentes en inglés. Documentación interactiva: `/docs`.
 
