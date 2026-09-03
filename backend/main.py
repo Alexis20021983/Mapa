@@ -33,6 +33,8 @@ with Session(engine) as seed_session:
         seed_session.commit()
 class MarkerIn(BaseModel):
     name:str; type:str; department:str; locality:str; lat:float; lng:float; notes:str=""
+class LocalityIn(BaseModel):
+    name:str; lat:float; lng:float; department:str
 class MarkerOut(MarkerIn): id:int; model_config={"from_attributes":True}
 app=FastAPI(title="Mapa La Pampa API",version="1.0.0")
 allowed_origins=[origin.strip() for origin in os.getenv("CORS_ORIGINS","http://localhost:5173").split(",") if origin.strip()]
@@ -55,6 +57,14 @@ def db():
 @app.get("/localidades")
 def list_localities(s:Session=Depends(db)):
     return [{"id":x.id,"name":x.name,"lat":x.latitude,"lng":x.longitude,"department":x.department} for x in s.scalars(select(Locality).order_by(Locality.name)).all()]
+@app.put("/api/localidades/{id}")
+@app.put("/localidades/{id}")
+def update_locality(id:int,locality:LocalityIn,s:Session=Depends(db)):
+    item=s.get(Locality,id)
+    if not item: raise HTTPException(404,"Localidad no encontrada")
+    item.latitude=locality.lat; item.longitude=locality.lng
+    s.commit()
+    return {"id":item.id,"name":item.name,"lat":item.latitude,"lng":item.longitude,"department":item.department}
 @app.get("/api/markers",response_model=list[MarkerOut])
 @app.get("/markers",response_model=list[MarkerOut])
 @app.get("/marcadores",response_model=list[MarkerOut])
