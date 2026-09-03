@@ -65,6 +65,13 @@ def update_locality(id:int,locality:LocalityIn,s:Session=Depends(db)):
     item.latitude=locality.lat; item.longitude=locality.lng
     s.commit()
     return {"id":item.id,"name":item.name,"lat":item.latitude,"lng":item.longitude,"department":item.department}
+@app.delete("/api/localidades/{id}",status_code=204)
+@app.delete("/localidades/{id}",status_code=204)
+def delete_locality(id:int,s:Session=Depends(db)):
+    item=s.get(Locality,id)
+    if item:
+        s.delete(item)
+        s.commit()
 @app.get("/api/markers",response_model=list[MarkerOut])
 @app.get("/markers",response_model=list[MarkerOut])
 @app.get("/marcadores",response_model=list[MarkerOut])
