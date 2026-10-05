@@ -9,9 +9,23 @@ type Props={section:'stock'|'deliveries';rolls:RollRow[];zone:RollZone;setZone:(
 
 function today(){return new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10)}
 
+function parseRollAmount(value:string):number{
+  const text=value.trim().replace(/\s/g,'');
+  if(!text)return 0;
+  const comma=text.lastIndexOf(',');
+  const dot=text.lastIndexOf('.');
+  const normalized=comma>=0&&dot>=0?(comma>dot?text.replace(/\./g,'').replace(',','.'):text.replace(/,/g,'')):text.replace(',','.');
+  const parsed=Number(normalized);
+  return Number.isFinite(parsed)?parsed:0;
+}
+
+const rollFormatter=new Intl.NumberFormat('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1});
+const couponFormatter=new Intl.NumberFormat('es-AR',{maximumFractionDigits:0});
+
 function loadInventory():RollInventory|null{const saved=localStorage.getItem('roll-inventory');return saved?JSON.parse(saved) as RollInventory:null}
 
 export default function RollInventoryPanel({section,rolls,zone,setZone,selectedAgencies,toggleAgency,toggleAllAgencies,deliveredRolls,updateDelivered,onImport,onExport}:Props){
+  const [deliveryInputs,setDeliveryInputs]=useState<Record<string,string>>({});
   const [inventory,setInventory]=useState<RollInventory|null>(loadInventory);
   const [inventoryDate,setInventoryDate]=useState(()=>inventory?.date||today());
   const [loadedRankDate,setLoadedRankDate]=useState(()=>localStorage.getItem('coupon-roll-date')||'');
@@ -35,7 +49,7 @@ export default function RollInventoryPanel({section,rolls,zone,setZone,selectedA
   };
   const saveInventory=()=>{
     if(!rolls.length||!inventoryDate||loadedRankDate!==inventoryDate)return;
-    const next:RollInventory={date:inventoryDate,stockSunmi:Math.max(0,Number(stockSunmi)||0),stockLahuan:Math.max(0,Number(stockLahuan)||0),baseline:Object.fromEntries(rolls.map(row=>[row.agency,{sunmiCoupons:row.tjCoupons,lahuanCoupons:row.lahuanCoupons}]))};
+    const next:RollInventory={date:inventoryDate,stockSunmi:Math.max(0,parseRollAmount(stockSunmi)),stockLahuan:Math.max(0,parseRollAmount(stockLahuan)),baseline:Object.fromEntries(rolls.map(row=>[row.agency,{sunmiCoupons:row.tjCoupons,lahuanCoupons:row.lahuanCoupons}]))};
     setInventory(next);
     localStorage.setItem('roll-inventory',JSON.stringify(next));
   };
@@ -45,9 +59,15 @@ export default function RollInventoryPanel({section,rolls,zone,setZone,selectedA
       window.alert('La fecha del ranking no puede ser anterior al stock registrado ni a la última carga.');
       return;
     }
+    if(!inventory)setInventoryDate(date);
     onImport(file);
     localStorage.setItem('coupon-roll-date',date);
     setLoadedRankDate(date);
+  };
+  const commitDelivery=(agency:string,fallback:number)=>{
+    const value=deliveryInputs[agency]??String(fallback);
+    updateDelivered(agency,String(Math.max(0,parseRollAmount(value))));
+    setDeliveryInputs(current=>{const updated={...current};delete updated[agency];return updated});
   };
 
   return <Paper className="gantt"><Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}><Box><Typography variant="h6">{section==='deliveries'?'Cantidad de rollos':'Consumo de rollos'}</Typography></Box></Stack>
@@ -55,14 +75,14 @@ export default function RollInventoryPanel({section,rolls,zone,setZone,selectedA
     <Typography color="text.secondary">Cargá el ranking de Boca del día en que recibís el stock; después, importá rankings con fecha posterior.</Typography>
     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{my:2}}>
       <TextField size="small" type="date" label="Fecha del inventario" InputLabelProps={{shrink:true}} value={inventoryDate} onChange={event=>setInventoryDate(event.target.value)}/>
-      <TextField size="small" type="number" label="Stock Sunmi" inputProps={{min:0,step:.1}} value={stockSunmi} onChange={event=>setStockSunmi(event.target.value)}/>
-      <TextField size="small" type="number" label="Stock Lahuan" inputProps={{min:0,step:.1}} value={stockLahuan} onChange={event=>setStockLahuan(event.target.value)}/>
+      <TextField size="small" label="Stock Sunmi" inputProps={{inputMode:'decimal'}} value={stockSunmi} onChange={event=>setStockSunmi(event.target.value)}/>
+      <TextField size="small" label="Stock Lahuan" inputProps={{inputMode:'decimal'}} value={stockLahuan} onChange={event=>setStockLahuan(event.target.value)}/>
       <Button variant="outlined" onClick={saveInventory} disabled={!rolls.length||!inventoryDate||loadedRankDate!==inventoryDate}>Registrar stock y corte</Button>
     </Stack>
-    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{mb:2}} alignItems="center"><TextField size="small" type="date" label="Fecha del ranking Boca" InputLabelProps={{shrink:true}} value={rankingDate} onChange={event=>setRankingDate(event.target.value)}/><Button component="label" variant="contained" disabled={!rankingDate}>Importar ranking de Boca<input hidden type="file" accept=".xlsx,.xls" onChange={event=>{const file=event.target.files?.[0];if(file)importRanking(file,rankingDate);event.target.value=''}}/></Button><Typography variant="body2" color="text.secondary">{loadedRankDate?`Ranking cargado: ${loadedRankDate}`:'Todavía no hay un ranking fechado.'}</Typography></Stack>
+    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{mb:2}} alignItems="center"><TextField size="small" type="date" label="Fecha del ranking Boca" InputLabelProps={{shrink:true}} value={rankingDate} onChange={event=>setRankingDate(event.target.value)}/><Button component="label" variant="contained" disabled={!rankingDate}>Importar ranking de Boca<input hidden type="file" accept=".xlsx,.xls" onChange={event=>{const file=event.target.files?.[0];if(file)importRanking(file,rankingDate);event.target.value=''}}/></Button><Typography variant="body2" color="text.secondary">{loadedRankDate?`Ranking cargado: ${loadedRankDate}`:'Todavía no hay un ranking fechado.'}{loadedRankDate&&loadedRankDate!==inventoryDate?' · Para registrar el corte, igualá la fecha del inventario con la del ranking.':''}</Typography></Stack>
     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{mb:2}}>
       <Chip label={`Agencias: ${filteredRolls.length}`}/>
-      {inventory?<><Chip color="primary" label={`Consumo Sunmi: ${totalSunmi.toFixed(1)} · Stock restante: ${(inventory.stockSunmi-totalSunmi).toFixed(1)}`}/><Chip color="secondary" label={`Consumo Lahuan: ${totalLahuan.toFixed(1)} · Stock restante: ${(inventory.stockLahuan-totalLahuan).toFixed(1)}`}/><Chip variant="outlined" label={`Corte: ${inventory.date}`}/></>:<Chip variant="outlined" label="Sin corte de inventario"/>}
+      {inventory?<><Chip color="primary" label={`Consumo Sunmi: ${rollFormatter.format(totalSunmi)} · Stock restante: ${rollFormatter.format(inventory.stockSunmi-totalSunmi)}`}/><Chip color="secondary" label={`Consumo Lahuan: ${rollFormatter.format(totalLahuan)} · Stock restante: ${rollFormatter.format(inventory.stockLahuan-totalLahuan)}`}/><Chip variant="outlined" label={`Corte: ${inventory.date}`}/></>:<Chip variant="outlined" label="Sin corte de inventario"/>}
     </Stack>
     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{mb:2}}>
       <Button size="small" onClick={toggleAllAgencies}>{selectedAgencies.length===filteredRolls.length?'Desmarcar todas':'Marcar todas'}</Button>
@@ -70,17 +90,17 @@ export default function RollInventoryPanel({section,rolls,zone,setZone,selectedA
       <Button size="small" onClick={()=>exportSelected('pdf')} disabled={!selectedAgencies.length}>PDF seleccionadas</Button>
       <FormControl size="small" sx={{minWidth:140}}><InputLabel>Zona</InputLabel><Select label="Zona" value={zone} onChange={event=>setZone(event.target.value as RollZone)}><MenuItem value="Todas">Todas</MenuItem><MenuItem value="Capital">Capital</MenuItem><MenuItem value="Interior">Interior</MenuItem></Select></FormControl>
     </Stack>
-    <Box sx={{overflowX:'auto'}}><table className="report-table"><thead><tr><th><input type="checkbox" checked={filteredRolls.length>0&&selectedAgencies.length===filteredRolls.length} onChange={toggleAllAgencies}/></th><th>Zona</th><th>Agencia</th><th>Consumo Sunmi desde corte</th><th>Consumo Lahuan desde corte</th><th>Cupones Sunmi</th><th>Rollos Sunmi acumulados</th><th>Cupones Lahuan</th><th>Rollos Lahuan acumulados</th></tr></thead><tbody>{filteredRolls.map(row=><tr key={row.agency}><td><input type="checkbox" checked={selectedAgencies.includes(row.agency)} onChange={()=>toggleAgency(row.agency)}/></td><td>{row.zone}</td><td>{row.agency}</td><td>{inventory?consumption(row,'sunmi').toFixed(1):'-'}</td><td>{inventory?consumption(row,'lahuan').toFixed(1):'-'}</td><td>{row.tjCoupons}</td><td>{row.tjRolls.toFixed(1)}</td><td>{row.lahuanCoupons}</td><td>{row.lahuanRolls.toFixed(1)}</td></tr>)}</tbody></table>
+    <Box sx={{overflowX:'auto'}}><table className="report-table"><thead><tr><th><input type="checkbox" checked={filteredRolls.length>0&&selectedAgencies.length===filteredRolls.length} onChange={toggleAllAgencies}/></th><th>Zona</th><th>Agencia</th><th>Consumo Sunmi desde corte</th><th>Consumo Lahuan desde corte</th><th>Cupones Sunmi</th><th>Rollos Sunmi acumulados</th><th>Cupones Lahuan</th><th>Rollos Lahuan acumulados</th></tr></thead><tbody>{filteredRolls.map(row=><tr key={row.agency}><td><input type="checkbox" checked={selectedAgencies.includes(row.agency)} onChange={()=>toggleAgency(row.agency)}/></td><td>{row.zone}</td><td>{row.agency}</td><td>{inventory?rollFormatter.format(consumption(row,'sunmi')):'-'}</td><td>{inventory?rollFormatter.format(consumption(row,'lahuan')):'-'}</td><td>{couponFormatter.format(row.tjCoupons)}</td><td>{rollFormatter.format(row.tjRolls)}</td><td>{couponFormatter.format(row.lahuanCoupons)}</td><td>{rollFormatter.format(row.lahuanRolls)}</td></tr>)}</tbody></table>
       {!rolls.length&&<Typography color="text.secondary" sx={{p:2}}>Importá el ranking correspondiente al día del inventario para fijar el corte.</Typography>}
     </Box>
     </>}
     {section==='deliveries'&&<>
       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{mb:2}}>
         <Chip label={`Agencias: ${filteredRolls.length}`}/>
-        <Chip color="primary" label={`Rollos entregados: ${filteredRolls.reduce((sum,row)=>sum+(deliveredRolls[row.agency]||0),0).toFixed(1)}`}/>
+        <Chip color="primary" label={`Rollos entregados: ${rollFormatter.format(filteredRolls.reduce((sum,row)=>sum+(deliveredRolls[row.agency]||0),0))}`}/>
         <FormControl size="small" sx={{minWidth:140}}><InputLabel>Zona</InputLabel><Select label="Zona" value={zone} onChange={event=>setZone(event.target.value as RollZone)}><MenuItem value="Todas">Todas</MenuItem><MenuItem value="Capital">Capital</MenuItem><MenuItem value="Interior">Interior</MenuItem></Select></FormControl>
       </Stack>
-      <Box sx={{overflowX:'auto'}}><table className="report-table"><thead><tr><th>Zona</th><th>Agencia</th><th>Rollos Sunmi acumulados</th><th>Rollos entregados</th><th>Saldo</th></tr></thead><tbody>{filteredRolls.map(row=>{const delivered=deliveredRolls[row.agency]||0;const balance=row.tjRolls-delivered;return <tr key={row.agency}><td>{row.zone}</td><td>{row.agency}</td><td>{row.tjRolls.toFixed(1)}</td><td><TextField size="small" type="number" inputProps={{min:0,step:.1}} value={delivered||''} onChange={event=>updateDelivered(row.agency,event.target.value)}/></td><td style={{color:balance<0?'#d32f2f':undefined,fontWeight:balance<0?700:undefined}}>{balance.toFixed(1)}</td></tr>})}</tbody></table>
+      <Box sx={{overflowX:'auto'}}><table className="report-table"><thead><tr><th>Zona</th><th>Agencia</th><th>Rollos Sunmi acumulados</th><th>Rollos entregados</th><th>Saldo</th></tr></thead><tbody>{filteredRolls.map(row=>{const delivered=deliveredRolls[row.agency]||0;const balance=row.tjRolls-delivered;return <tr key={row.agency}><td>{row.zone}</td><td>{row.agency}</td><td>{rollFormatter.format(row.tjRolls)}</td><td><TextField size="small" inputProps={{inputMode:'decimal'}} value={deliveryInputs[row.agency]??(delivered?rollFormatter.format(delivered):'')} onChange={event=>setDeliveryInputs(current=>({...current,[row.agency]:event.target.value}))} onBlur={()=>commitDelivery(row.agency,delivered)}/></td><td style={{color:balance<0?'#d32f2f':undefined,fontWeight:balance<0?700:undefined}}>{rollFormatter.format(balance)}</td></tr>})}</tbody></table>
         {!rolls.length&&<Typography color="text.secondary" sx={{p:2}}>Importá un ranking para ver las agencias y registrar sus entregas.</Typography>}
       </Box>
     </>}
