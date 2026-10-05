@@ -1,18 +1,17 @@
 import {useState} from 'react';
-import {Box,Button,Chip,FormControl,InputLabel,MenuItem,Paper,Select,Stack,Tab,Tabs,TextField,Typography} from '@mui/material';
+import {Box,Button,Chip,FormControl,InputLabel,MenuItem,Paper,Select,Stack,TextField,Typography} from '@mui/material';
 
 type RollRow={agency:string;zone:'Capital'|'Interior';tjCoupons:number;tjRolls:number;lahuanCoupons:number;lahuanRolls:number};
 type RollZone='Todas'|'Capital'|'Interior';
 type RollInventory={date:string;stockSunmi:number;stockLahuan:number;baseline:Record<string,{sunmiCoupons:number;lahuanCoupons:number}>};
 type RollConsumption={sunmi:number;lahuan:number};
-type Props={rolls:RollRow[];zone:RollZone;setZone:(zone:RollZone)=>void;selectedAgencies:string[];toggleAgency:(agency:string)=>void;toggleAllAgencies:()=>void;deliveredRolls:Record<string,number>;updateDelivered:(agency:string,value:string)=>void;onImport:(file:File)=>void;onExport:(format:string,rows:RollRow[],consumption:Record<string,RollConsumption>)=>void};
+type Props={section:'stock'|'deliveries';rolls:RollRow[];zone:RollZone;setZone:(zone:RollZone)=>void;selectedAgencies:string[];toggleAgency:(agency:string)=>void;toggleAllAgencies:()=>void;deliveredRolls:Record<string,number>;updateDelivered:(agency:string,value:string)=>void;onImport:(file:File)=>void;onExport:(format:string,rows:RollRow[],consumption:Record<string,RollConsumption>)=>void};
 
 function today(){return new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,10)}
 
 function loadInventory():RollInventory|null{const saved=localStorage.getItem('roll-inventory');return saved?JSON.parse(saved) as RollInventory:null}
 
-export default function RollInventoryPanel({rolls,zone,setZone,selectedAgencies,toggleAgency,toggleAllAgencies,deliveredRolls,updateDelivered,onImport,onExport}:Props){
-  const [section,setSection]=useState<'stock'|'deliveries'>('stock');
+export default function RollInventoryPanel({section,rolls,zone,setZone,selectedAgencies,toggleAgency,toggleAllAgencies,deliveredRolls,updateDelivered,onImport,onExport}:Props){
   const [inventory,setInventory]=useState<RollInventory|null>(loadInventory);
   const [inventoryDate,setInventoryDate]=useState(()=>inventory?.date||today());
   const [loadedRankDate,setLoadedRankDate]=useState(()=>localStorage.getItem('coupon-roll-date')||'');
@@ -51,8 +50,7 @@ export default function RollInventoryPanel({rolls,zone,setZone,selectedAgencies,
     setLoadedRankDate(date);
   };
 
-  return <Paper className="gantt"><Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}><Box><Typography variant="h6">Gestión de rollos</Typography></Box></Stack>
-    <Tabs value={section} onChange={(_,value)=>setSection(value)} sx={{borderBottom:1,borderColor:'divider',mb:2}}><Tab value="stock" label="Stock y consumo"/><Tab value="deliveries" label="Entregas a agencias"/></Tabs>
+  return <Paper className="gantt"><Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}><Box><Typography variant="h6">{section==='deliveries'?'Cantidad de rollos':'Consumo de rollos'}</Typography></Box></Stack>
     {section==='stock'&&<>
     <Typography color="text.secondary">Cargá el ranking de Boca del día en que recibís el stock; después, importá rankings con fecha posterior.</Typography>
     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{my:2}}>
